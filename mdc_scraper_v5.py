@@ -135,35 +135,44 @@ class MiamiDadePropertyScraper:
         return full_path
 
 def main():
-    # Example usage with custom parameters
-    scraper = MiamiDadePropertyScraper({
-        "SurplusF": "4",  # Only surplus properties
-        # Add other filters as needed
-    })
-    
-    # Start scraping with:
-    # - Maximum 100 pages (safety limit)
-    # - 1 second delay between requests
-    start_time = time.time()
-    data = scraper.scrape_all_pages(max_pages=100, delay=1.0)
-    
-    if not data.empty:
-        # Save results
-        saved_file = scraper.save_checkpoint(data)
+
+    timestamp = time.strftime("%Y%m%d")
+    runs = [
+        {"filter": {"SurplusF": "4"}, "filename": f"{timestamp}_surplus"},
+        {"filter": {"PrpTypeF": "35"}, "filename": f"{timestamp}_eel"},
+        {"filter": {"PrpTypeF": "74"}, "filename": f"{timestamp}_vacant_bldg"},
+        {"filter": {"PrpTypeF": "37"}, "filename": f"{timestamp}_vacant_land"},
+        {"filter": {"PrpTypeF": "30"}, "filename": f"{timestamp}_cemetary"},
+    ]
+
+    for run in runs:
+
+        # Example usage with custom parameters
+        scraper = MiamiDadePropertyScraper(run["filter"])
         
-        # Show summary
-        print("\nScraping Summary:")
-        print(f"- Total properties: {len(data)}")
-        print(f"- Columns: {list(data.columns)}")
-        print(f"- First Folio: {data.iloc[0,0] if len(data) > 0 else 'N/A'}")
-        print(f"- Last Folio: {data.iloc[-1,0] if len(data) > 0 else 'N/A'}")
-        print(f"\nExecution time: {time.time()-start_time:.2f} seconds")
+        # Start scraping with:
+        # - Maximum 100 pages (safety limit)
+        # - 1 second delay between requests
+        start_time = time.time()
+        data = scraper.scrape_all_pages(max_pages=100, delay=1.0)
         
-        # Save parameters used for documentation
-        with open(os.path.join('output', 'scrape_parameters.json'), 'w') as f:
-            json.dump(scraper.params, f, indent=2)
-    else:
-        print("No data was collected")
+        if not data.empty:
+            # Save results
+            saved_file = scraper.save_checkpoint(data,f"{run['filename']}.csv")
+            
+            # Show summary
+            print("\nScraping Summary:")
+            print(f"- Total properties: {len(data)}")
+            print(f"- Columns: {list(data.columns)}")
+            print(f"- First Folio: {data.iloc[0,0] if len(data) > 0 else 'N/A'}")
+            print(f"- Last Folio: {data.iloc[-1,0] if len(data) > 0 else 'N/A'}")
+            print(f"\nExecution time: {time.time()-start_time:.2f} seconds")
+            
+            # Save parameters used for documentation
+            with open(os.path.join('output', f"{run['filename']}_parameters.json"), 'w') as f:
+                json.dump(scraper.params, f, indent=2)
+        else:
+            print("No data was collected")
 
 if __name__ == "__main__":
     main()
