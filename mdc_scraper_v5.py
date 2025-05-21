@@ -133,12 +133,16 @@ class MiamiDadePropertyScraper:
         df.to_csv(full_path, index=False)
         print(f"Data saved to {full_path}")
 
-        df.to_csv(f"{path}/{path}.csv", columns=['Folio','source'], index=False, mode='a')
         return full_path
 
 def main():
 
+    # output constants
     timestamp = time.strftime("%Y%m%d")
+    write_path = "../download" # best for GDSC integration
+    join_table = "mdc_cce_land_parcel_filters.csv" # same name as GDSC table
+
+    # set the scrape parameters for exclusion and inclusion
     actions = {
         "exclude": [
             {"filter": {"PrpTypeF": "42"}, "filename": f"{timestamp}_AffordableHousingRentals"},
@@ -206,9 +210,15 @@ def main():
             {"filter": {"PrpTypeF": "15"}, "filename": f"{timestamp}_TreatmentPlant"},
             {"filter": {"PrpTypeF": "65"}, "filename": f"{timestamp}_Warehouse"},
             {"filter": {"PrpTypeF": "88"}, "filename": f"{timestamp}_WaterPlant"},
-            {"filter": {"PrpTypeF": "23"}, "filename": f"{timestamp}_Wellfield"}
+            {"filter": {"PrpTypeF": "23"}, "filename": f"{timestamp}_Wellfield"},
+            {"filter": {"PrpTypeF": "5"}, "filename": f"{timestamp}_NotDetermined"}
         ],
         "include": [
+            {"filter": {"PrpTypeF": "41"}, "filename": f"{timestamp}_Hospital"},
+            {"filter": {"PrpTypeF": "97"}, "filename": f"{timestamp}_InfillHousingLot"},
+            {"filter": {"PrpTypeF": "33"}, "filename": f"{timestamp}_ParkingLot"},
+            {"filter": {"PrpTypeF": "24"}, "filename": f"{timestamp}_PoliceStation"},
+            {"filter": {"PrpTypeF": "86"}, "filename": f"{timestamp}_StateFacility"},
             {"filter": {"PrpTypeF": "74"}, "filename": f"{timestamp}_VacantBuilding"},
             {"filter": {"PrpTypeF": "37", "SurplusF": "22"}, "filename": f"{timestamp}_VacantLand"},
             {"filter": {"PrpTypeF": "40", "SurplusF": "22"}, "filename": f"{timestamp}_GovernmentCenter"},
@@ -216,6 +226,12 @@ def main():
         ]
     }
 
+    # create a join table with "folio" as the foreign key
+    os.makedirs(write_path, exist_ok=True)
+    with open(os.path.join(write_path, join_table), 'w') as f:
+        f.write(f"folio,{','.join([x for x in actions])}\n")
+
+    # loop through actions and conditions for each action
     for action in actions:
         for condition in actions[action]:
 
@@ -229,9 +245,26 @@ def main():
             data = scraper.scrape_all_pages(max_pages=100, delay=1.0)
             
             if not data.empty:
+                
+                # mark the filter type in the df
+                for header in actions:
+                    data[header] = condition['filename'][9:] if header == action else None
+
                 # Save results
-                data['source'] = condition['filename'][9:]
-                saved_file = scraper.save_checkpoint(data,path=action,filename=f"{condition['filename']}.csv")
+                saved_file = scraper.save_checkpoint(
+                    data,
+                    path=os.path.join(write_path,action),
+                    filename=f"{condition['filename']}.csv"
+                )
+
+                # write to the join file
+                data.to_csv(
+                    os.path.join(write_path, join_table),
+                    columns=['Folio'] + [x for x in actions],
+                    index=False, 
+                    header=False, 
+                    mode='a'
+                )
                 
                 # Show summary
                 summary = {
@@ -249,7 +282,7 @@ def main():
                     "parameters": scraper.params,
                     "summary": summary
                 }
-                with open(os.path.join(action, f"{condition['filename']}_parameters.json"), 'w') as f:
+                with open(os.path.join(write_path, action, f"{condition['filename']}_parameters.json"), 'w') as f:
                     json.dump(docs, f, indent=2)
 
             else:

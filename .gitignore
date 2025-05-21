@@ -1,3 +1,4 @@
 include/
 exclude/
+download/
 .DS_Store
