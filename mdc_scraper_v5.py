@@ -250,6 +250,9 @@ def main():
                 for header in actions:
                     data[header] = condition['filename'][9:] if header == action else None
 
+                # strip all hyphens from the folio
+                data['Folio'] = data['Folio'].replace("\-","",regex=True)
+
                 # Save results
                 saved_file = scraper.save_checkpoint(
                     data,
